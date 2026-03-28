@@ -13,13 +13,6 @@ const FlowMapper = () => {
       <ReactFlowProvider>
         <FlowEditor />
       </ReactFlowProvider>
-
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-white/25 text-xs text-center select-none">
-        Drag from <span className="text-emerald-400/60 font-semibold">If</span>{" "}
-        or <span className="text-orange-400/60 font-semibold">Else</span>{" "}
-        handles to connect or create nodes &nbsp;·&nbsp;{" "}
-        <kbd className="font-mono">Del</kbd> to remove selected
-      </div>
     </div>
   );
 };
