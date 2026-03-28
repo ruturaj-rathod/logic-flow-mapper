@@ -9,7 +9,6 @@ export type LogicNodeData = {
 };
 
 export type LogicEdgeData = {
-  edgeType: "if" | "else";
   isLooped: boolean;
 };
 
@@ -20,25 +19,28 @@ function dfs(
   node: string,
   graph: Record<string, string[]>,
   visited: Set<string>,
-  currentPath: Set<string>,
-): boolean {
+  pathStack: string[],
+  pathSet: Set<string>,
+  cycleNodes: Set<string>,
+): void {
   visited.add(node);
+  pathStack.push(node);
+  pathSet.add(node);
 
-  currentPath.add(node);
   for (const nbr of graph[node] ?? []) {
-    // if nbr is already in the current path, we found a cycle
-    if (currentPath.has(nbr)) return true;
-
-    // if nbr is already fully visited and didn't lead to a cycle, skip
-    if (visited.has(nbr)) continue;
-
-    // recursively visit nbr
-    if (dfs(nbr, graph, visited, currentPath)) return true;
+    if (pathSet.has(nbr)) {
+      const cycleStart = pathStack.indexOf(nbr);
+      for (let i = cycleStart; i < pathStack.length; i++) {
+        cycleNodes.add(pathStack[i]);
+      }
+    } else if (!visited.has(nbr)) {
+      dfs(nbr, graph, visited, pathStack, pathSet, cycleNodes);
+    }
   }
-  // backtrack: remove node from current path before returning
-  currentPath.delete(node);
 
-  return false;
+  // Backtrack
+  pathStack.pop();
+  pathSet.delete(node);
 }
 
 export function detectCycles(
@@ -48,27 +50,24 @@ export function detectCycles(
   const nodeIds = nodes.map((n) => n.id);
   const graph: Record<string, string[]> = {};
 
-  // build a graph
+  // Build adjacency list
   for (const edge of edges) {
     const { source, target } = edge;
     const sourceNode = graph[source] ?? [];
-
     sourceNode.push(target);
     graph[source] = sourceNode;
   }
 
-  // track visited nodes
   const visited = new Set<string>();
-  // track nodes in the current path for cycle detection
-  const currentPath = new Set<string>();
+  const cycleNodes = new Set<string>(); // only nodes that ARE part of a cycle
 
-  // Need to iterate over all nodes to cover disconnected components
+  // Iterate over all nodes to cover disconnected components
   for (const nodeId of nodeIds) {
     if (visited.has(nodeId)) continue;
-    dfs(nodeId, graph, visited, currentPath);
+    dfs(nodeId, graph, visited, [], new Set(), cycleNodes);
   }
 
-  return currentPath;
+  return cycleNodes;
 }
 
 function nextId() {
@@ -116,10 +115,11 @@ export const useLogicFlowStore = create<LogicFlowState>()(
       hasCycle: false,
 
       setNodes: (nodes) => {
-        get().revalidate(nodes, get().edges);
+        set({ nodes });
       },
 
       setEdges: (edges) => {
+        // When edge change due to connection with existing edge, we need revalidate
         get().revalidate(get().nodes, edges);
       },
 
@@ -137,18 +137,44 @@ export const useLogicFlowStore = create<LogicFlowState>()(
       },
 
       deleteNode: (id) => {
-        const nodes = get().nodes.filter((n) => n.id !== id);
-        const edges = get().edges.filter(
+        const allEdges = get().edges;
+
+        // Remove the deleted node and all its connected edges
+        const updatedNodes = get().nodes.filter((n) => n.id !== id).map((n) => ({ ...n, data: { ...n.data, isLooped: false } }));
+        const remainingEdges = allEdges.filter(
           (e) => e.source !== id && e.target !== id,
         );
-        get().revalidate(nodes, edges);
+
+        if (get().hasCycle) {
+          // Cycle present: just remove the node, no bridging
+          get().revalidate(updatedNodes, remainingEdges);
+        } else {
+          // No cycle: bridge the single parent to the single child (if both exist)
+          const parentEdge = allEdges.find((e) => e.target === id);
+          const childEdge = allEdges.find((e) => e.source === id);
+
+          const edges =
+            parentEdge && childEdge
+              ? [
+                ...remainingEdges,
+                {
+                  id: `e-${parentEdge.source}-${childEdge.target}`,
+                  source: parentEdge.source,
+                  target: childEdge.target,
+                  data: { isLooped: false },
+                } satisfies LogicEdge,
+              ]
+              : remainingEdges;
+
+          set({ nodes: updatedNodes, edges });
+        }
       },
 
       updateNodeData: (id, data) => {
         const nodes = get().nodes.map((n) =>
           n.id === id ? { ...n, data: { ...n.data, ...data } } : n,
         );
-        get().revalidate(nodes, get().edges);
+        set({ nodes });
       },
 
       revalidate: (nodes = get().nodes, edges = get().edges) => {
@@ -162,7 +188,6 @@ export const useLogicFlowStore = create<LogicFlowState>()(
         const updatedEdges = edges.map((e) => ({
           ...e,
           data: {
-            ...(e.data ?? { edgeType: "if" as const }),
             isLooped: looped.has(e.source) && looped.has(e.target),
           },
           animated: looped.has(e.source) && looped.has(e.target),

@@ -63,35 +63,13 @@ function LogicNodeComponent(props: NodeProps<LogicNode>) {
         />
       </div>
 
-      <div className="relative flex justify-between px-4 pb-3 mt-1">
-        {/* IF handle */}
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400">
-            If
-          </span>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="if"
-            style={{ position: "static", transform: "none" }}
-            className="relative! w-3! h-3! bg-emerald-500! border-2! border-emerald-700! hover:bg-emerald-300! transition-colors"
-          />
-        </div>
-
-        {/* ELSE handle */}
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-orange-400">
-            Else
-          </span>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="else"
-            style={{ position: "static", transform: "none" }}
-            className="relative! w-3! h-3! bg-orange-500! border-2! border-orange-700! hover:bg-orange-300! transition-colors"
-          />
-        </div>
-      </div>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="if"
+        style={{ position: "static", transform: "none" }}
+        className="relative! w-3! h-3! bg-emerald-500! border-2! border-emerald-700! hover:bg-emerald-300! transition-colors"
+      />
 
       <div className="absolute -top-5 left-0 text-[9px] text-white/20 px-1">
         {id}

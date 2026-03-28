@@ -105,7 +105,7 @@ function FlowEditor() {
       onConnect={onConnect}
       onConnectEnd={onConnectEnd}
       fitView
-      deleteKeyCode="Delete"
+      deleteKeyCode={null}
       proOptions={{ hideAttribution: true }}
       defaultEdgeOptions={{ type: "smoothstep" }}
     >
