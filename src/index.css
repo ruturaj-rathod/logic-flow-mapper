@@ -1,1 +1,64 @@
 @import "tailwindcss";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.react-flow__pane {
+  cursor: grab;
+}
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.react-flow__connection-path {
+  stroke: var(--color-indigo-400);
+  stroke-width: 2;
+}
+
+.react-flow__controls-button {
+  background: var(--color-slate-800) !important;
+  border-color: var(--color-slate-700) !important;
+  color: var(--color-slate-400) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--color-slate-700) !important;
+  color: var(--color-slate-200) !important;
+}
+
+.react-flow__edge-textbg {
+  rx: 5;
+  ry: 5;
+}
+
+.react-flow__handle {
+  border-radius: 50%;
+  cursor: crosshair;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.react-flow__handle:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--color-indigo-500) 50%, transparent);
+}
+.react-flow__handle-connecting {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-indigo-500) 60%, transparent);
+}
+.react-flow__handle-valid {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-emerald-400) 70%, transparent) !important;
+}

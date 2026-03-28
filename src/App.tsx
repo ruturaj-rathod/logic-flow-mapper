@@ -1,9 +1,9 @@
-import FlowEditor from "@/components/flow-editor";
+import FlowMapper from "./views/flow-mapper";
 
 function App() {
   return (
     <>
-      <FlowEditor />
+      <FlowMapper />
     </>
   );
 }

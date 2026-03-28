@@ -1,63 +1,116 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import {
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
+  Controls,
+  Position,
   ReactFlow,
+  useReactFlow,
   type Connection,
   type EdgeChange,
   type NodeChange,
+  type OnConnectEnd,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-const initialNodes = [
-  { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
-  { id: "n2", position: { x: 0, y: 100 }, data: { label: "Node 2" } },
-];
+import LogicNodeComponent from "@/components/logic-node";
+import {
+  useLogicFlowStore,
+  type LogicEdge,
+  type LogicNode,
+} from "@/store/graph";
 
-const initialEdges = [{ id: "n1-n2", source: "n1", target: "n2" }];
+// Custom node
+const NODE_TYPES = { logicNode: LogicNodeComponent };
 
 function FlowEditor() {
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
+  const { edges, nodes, setEdges, setNodes, addNode } = useLogicFlowStore();
+  const { screenToFlowPosition } = useReactFlow();
 
   const onNodesChange = useCallback(
-    (
-      changes: NodeChange<{
-        id: string;
-        position: {
-          x: number;
-          y: number;
-        };
-        data: {
-          label: string;
-        };
-      }>[],
-    ) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
-    [],
+    (changes: NodeChange<LogicNode>[]) =>
+      setNodes(applyNodeChanges(changes, nodes)),
+    [setNodes, nodes],
   );
+
   const onEdgesChange = useCallback(
-    (changes: EdgeChange<{ id: string; source: string; target: string }>[]) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
-    [],
+    (changes: EdgeChange<LogicEdge>[]) =>
+      setEdges(applyEdgeChanges(changes, edges)),
+    [setEdges, edges],
   );
+
   const onConnect = useCallback(
-    (params: Connection) =>
-      setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
-    [],
+    (params: Connection) => {
+      // Before adding, remove any existing edge that uses the same source + sourceHandle
+      const filtered = edges.filter(
+        (e) =>
+          !(
+            e.source === params.source && e.sourceHandle === params.sourceHandle
+          ),
+      );
+      setEdges(addEdge(params, filtered));
+    },
+    [setEdges, edges],
+  );
+
+  const onConnectEnd: OnConnectEnd = useCallback(
+    (event, connectionState) => {
+      // Only fire when dropped on empty canvas
+      if (connectionState.isValid) return;
+
+      // Not create node when dropped on top handle
+      if (connectionState.fromPosition === Position.Top) return;
+
+      const target = event as MouseEvent | TouchEvent;
+      const clientX =
+        "clientX" in target
+          ? target.clientX
+          : (target as TouchEvent).touches[0].clientX;
+      const clientY =
+        "clientY" in target
+          ? target.clientY
+          : (target as TouchEvent).touches[0].clientY;
+
+      const position = screenToFlowPosition({ x: clientX, y: clientY });
+      const newNode = addNode(position);
+
+      const fromNode = connectionState.fromNode?.id;
+      const fromHandle = connectionState.fromHandle?.id;
+      if (!fromNode || !fromHandle) return;
+
+      const params: Connection = {
+        source: fromNode,
+        sourceHandle: fromHandle,
+        target: newNode.id,
+        targetHandle: "in",
+      };
+
+      // Enforce single connection on the source handle
+      const filtered = edges.filter(
+        (e) => !(e.source === fromNode && e.sourceHandle === fromHandle),
+      );
+      setEdges(addEdge(params, filtered));
+    },
+    [screenToFlowPosition, addNode, edges, setEdges],
   );
 
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        fitView
-      />
-    </div>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={NODE_TYPES}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      onConnectEnd={onConnectEnd}
+      fitView
+      deleteKeyCode="Delete"
+      proOptions={{ hideAttribution: true }}
+      defaultEdgeOptions={{ type: "smoothstep" }}
+    >
+      <Controls />
+    </ReactFlow>
   );
 }
 
